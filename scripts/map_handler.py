@@ -3,23 +3,14 @@ import yaml
 import numpy as np
 import json
 import math
-# import time
 from Queue import PriorityQueue
-
 from time import time, sleep
 
 MAP_NAME = "double_zz_map"
 CLEAR_TERRAIN_COLOR = 254  # reee
 VALID_PATH_COLOR = 75
 WALL_COLOR = 255
-
-with open("maps/{}.yaml".format(MAP_NAME)) as map_yaml:
-    map_data = yaml.load(map_yaml)
-
-img = cv2.imread("maps/{}.pgm".format(MAP_NAME), 0)
-# cv2.imshow("asdf", img)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+MAP_DISPLAY_SCALING_FACTOR = 7
 
 
 # TODO Make BFS pathfinding work to discover the map in the first place
@@ -75,22 +66,25 @@ class Node(object):
             "neighbors": ["{},{}".format(i.row, i.col) for i in self.neighbors]
         }
 
-    @classmethod
-    def from_dict(cls, serialized_dict):
-        raw_neighbors = serialized_dict["neighbors"]
-        neighbor_nodes = set()
-        for node_coords in raw_neighbors:
-            # Stored as a list of coord pairs
-            # we want to cache nodes that we know exist and then go back in and fill them
+    # TODO Finish from_dict()
+    # We'd need to leave it up to whatever is calling from_dict to handle the nodes
 
-            for r, c in raw_neighbors.split(","):
-                neighbor_nodes.add(Node(r, c))
-
-        return cls(serialized_dict["r"],
-                   serialized_dict["c"],
-                   serialized_dict["w"],
-                   serialized_dict["h"],
-                   neighbor_nodes)
+    # @classmethod
+    # def from_dict(cls, serialized_dict):
+    #     raw_neighbors = serialized_dict["neighbors"]
+    #     neighbor_nodes = set()
+    #     for node_coords in raw_neighbors:
+    #         # Stored as a list of coord pairs
+    #         # TODO we want to cache nodes that we know exist and then go back in and fill them
+    #
+    #         for r, c in raw_neighbors.split(","):
+    #             neighbor_nodes.add(Node(r, c))
+    #
+    #     return cls(serialized_dict["r"],
+    #                serialized_dict["c"],
+    #                serialized_dict["w"],
+    #                serialized_dict["h"],
+    #                neighbor_nodes)
 
     def add_neighbors(self, nodes):
         self.neighbors.update(nodes)
@@ -283,7 +277,7 @@ class MapHandler(object):
 
         queue.put(cur_node)
 
-        while len(parents) != len(graph):
+        while parents != graph_keys:
             cur_node = queue.get()
 
             if cur_node in visited:
@@ -292,7 +286,7 @@ class MapHandler(object):
             if cur_node == target_node:
                 break
 
-            print(cur_node)
+            # print(cur_node)
 
             for neighbor_node in cur_node.neighbors:
                 # if neighbor_node in parents:
@@ -323,7 +317,8 @@ class MapHandler(object):
             cur_node = parents[cur_node]
             if show_progress:
 
-                new_img = cv2.resize(image_tmp, None, fx=3, fy=3, interpolation=cv2.INTER_AREA)
+                new_img = cv2.resize(np.copy(image_tmp), None, fx=MAP_DISPLAY_SCALING_FACTOR,
+                                     fy=MAP_DISPLAY_SCALING_FACTOR, interpolation=cv2.INTER_AREA)
                 cv2.imshow("Path", new_img)
                 sleep(0.05)
                 cv2.waitKey(1)
@@ -333,13 +328,13 @@ class MapHandler(object):
             print("Could not find a path.")
             return []
 
-        print("Dummy")
-        image_tmp = cv2.resize(image_tmp, None, fx=3, fy=3, interpolation=cv2.INTER_AREA)
+        image_tmp = cv2.resize(image_tmp, None, fx=MAP_DISPLAY_SCALING_FACTOR,
+                               fy=MAP_DISPLAY_SCALING_FACTOR, interpolation=cv2.INTER_AREA)
         cv2.imshow("Path", image_tmp)
         return path_back
 
     @staticmethod
-    def upscale_img(img, fx=3, fy=3):
+    def upscale_img(img, fx=MAP_DISPLAY_SCALING_FACTOR, fy=MAP_DISPLAY_SCALING_FACTOR):
         return cv2.resize(img, None, fx=fx, fy=fy, interpolation=cv2.INTER_AREA)
 
     @staticmethod
@@ -418,22 +413,42 @@ class MapHandler(object):
         with open(filepath, "w") as f:
             json.dump(output_dict, f, indent=4)
 
+    # @staticmethod
+    # def graph_from_json(filepath):
+    #     graph = {}
+    #     with open(filepath, "r") as f:
+    #         data_dict = json.load(f)
+    #
+    #     for coords, node_data in data_dict.iteritems():
+    #         coords_split = coords.split(",")
+    #         r = int(coords_split[0])
+    #         c = int(coords_split[1])
+    #         graph[(r, c)] = Node.from_dict(node_data)
+    #
+    #     return graph
+
     @staticmethod
-    def graph_from_json(filepath):
-        graph = {}
-        with open(filepath, "r") as f:
-            data_dict = json.load(f)
+    def cartesian_to_row_major(x, y):
+        return y, x
 
-        for coords, node_data in data_dict.iteritems():
-            coords_split = coords.split(",")
-            r = int(coords_split[0])
-            c = int(coords_split[1])
-            graph[(r, c)] = Node.from_dict(node_data)
-
-        return graph
+    @staticmethod
+    def show_img(image, rescale=True, window_name="Path"):
+        temp_image = np.copy(image)
+        if rescale:
+            temp_image = MapHandler.upscale_img(temp_image)
+        cv2.imshow(window_name, temp_image)
 
 
 if __name__ == '__main__':
+
+    # TODO Make this more modular
+
+    with open("maps/{}.yaml".format(MAP_NAME)) as map_yaml:
+        map_data = yaml.load(map_yaml)
+
+    img = cv2.imread("maps/{}.pgm".format(MAP_NAME), 0)
+
+    cv2.namedWindow("Path")
 
     time_init = time()
     img_cropped = MapHandler.crop_to_contents(img)
@@ -447,7 +462,7 @@ if __name__ == '__main__':
     # cv2.imshow("cropped", img_cropped)
     # print(graph)
     # path = MapHandler.bfs(img_painted, graph, Node(55, 13), Node(7, 4))
-    path = MapHandler.astar(img_painted, graph, graph.get((6, 54)), graph.get((55, 55)), show_progress=True)
+    # path = MapHandler.astar(img_painted, graph, graph.get((6, 54)), graph.get((55, 55)), show_progress=True)
 
     # MapHandler.graph_to_json(graph, "test.json")
     #
@@ -459,5 +474,55 @@ if __name__ == '__main__':
     # print(path)
 
     # cv2.imshow("afafa", img_painted)
+    last_start_point = (0, 0)
+    last_target_point = (0, 0)
+    actively_pathing = False
+
+    def on_mouse_click(event, x, y, flags, param):
+        global last_start_point, last_target_point, actively_pathing
+        # TODO Make the x/y universal
+        y /= MAP_DISPLAY_SCALING_FACTOR
+        x /= MAP_DISPLAY_SCALING_FACTOR
+        if event == cv2.EVENT_LBUTTONUP:
+            print("hey it's up")
+
+        if event == cv2.EVENT_LBUTTONDOWN:
+            # First click
+            if last_start_point == (0, 0):
+                last_start_point = MapHandler.cartesian_to_row_major(x, y)
+
+                img_tmp = np.copy(img_painted)
+                img_tmp[y][x] = 0
+                cv2.imshow("Path", MapHandler.upscale_img(np.copy(img_tmp)))
+                print("Setting start to ({}, {})".format(x, y))
+
+            # second click
+            elif last_target_point == (0, 0):
+                last_target_point = MapHandler.cartesian_to_row_major(x, y)
+                print("Setting target to ({}, {})".format(x, y))
+                # reverse them since it prints as it backtracks
+                actively_pathing = True
+                MapHandler.astar(img_painted, graph,
+                                 graph[last_target_point],
+                                 graph[last_start_point],
+                                 show_progress=True)
+                actively_pathing = False
+
+            # reset it
+            else:
+                print("Resetting: setting start to ({}, {})".format(x, y))
+                # cv2.destroyWindow("Path")
+                last_start_point = MapHandler.cartesian_to_row_major(x, y)
+                last_target_point = (0, 0)
+                img_tmp = np.copy(img_painted)
+                img_tmp[y][x] = 0
+                MapHandler.show_img(img_tmp)
+
+    cv2.imshow("Path", MapHandler.upscale_img(np.copy(img_painted)))
+    cv2.setMouseCallback("Path", on_mouse_click)
+
+
+    # cv2.setMouseCallback("Path", release_callback)
+
     cv2.waitKey(0)
     cv2.destroyAllWindows()
