@@ -252,8 +252,6 @@ class MapHandler(object):
             return []
 
         print("Dummy")
-        # image_tmp = cv2.resize(image_tmp, None, fx=3, fy=3)
-        # cv2.imshow("Path", image_tmp)
         return path_back
 
         # No check to see if we're at goal since we'll break when the queue size is 0
@@ -520,7 +518,6 @@ if __name__ == '__main__':
 
     cv2.imshow("Path", MapHandler.upscale_img(np.copy(img_painted)))
     cv2.setMouseCallback("Path", on_mouse_click)
-
 
     # cv2.setMouseCallback("Path", release_callback)
 
