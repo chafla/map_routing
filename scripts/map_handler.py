@@ -136,30 +136,30 @@ class MapHandler(object):
         return ret if ret != 0 else 1
 
     @staticmethod
-    def _get_dist_heuristic(image, wall_dist, row, col):
-        for i in range(row - wall_dist, row + wall_dist + 1):
+    def _get_dist_heuristic(image, wall_distance, row, col):
+        for i in range(row - wall_distance, row + wall_distance + 1):
             if not 0 < i < image.shape[0]:
                 continue
-            for j in range(col - wall_dist, col + wall_dist + 1):
+            for j in range(col - wall_distance, col + wall_distance + 1):
                 if not 0 < j < image.shape[1]:
                     continue
                 # if i == row and j == col:
                 #     continue
                 if image[i][j] == 0:  # if we've found that it's within range of a black pixel
-                    dist = 255.0 * (float(wall_dist) / float(MapHandler._dist(row, col, i, j)))
+                    dist = 255.0 * (float(wall_distance) / float(MapHandler._dist(row, col, i, j)))
                     return dist
         return VALID_PATH_COLOR
 
     @staticmethod
-    def _check_surrounding_px(image, wall_dist, row, col):
-        for i in range(row - wall_dist, row + wall_dist + 1):
-            for j in range(col - wall_dist, col + wall_dist + 1):
+    def _check_surrounding_px(image, wall_distance, row, col):
+        for i in range(row - wall_distance, row + wall_distance + 1):
+            for j in range(col - wall_distance, col + wall_distance + 1):
                 if image[i][j] == 0:  # if it's a black pixel
                     return False
         return True
 
     @staticmethod
-    def get_node_pixels(image, wall_dist):
+    def get_node_pixels(image, wall_distance):
         """Get the pixels which are a given distance away from any other pixels"""
         img_tmp = np.copy(image)
         h, w = img_tmp.shape
@@ -168,16 +168,17 @@ class MapHandler(object):
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
                 # The != 0 is there in case it's a wall pixel
-                if wall_dist < col < w - wall_dist - 1 and wall_dist < row < h - wall_dist - 1 and img_tmp[row][col] != WALL_COLOR:
+                if wall_distance < col < w - wall_distance - 1 and wall_distance < row < h - wall_distance - 1 and \
+                        img_tmp[row][col] != WALL_COLOR:
                     # if MapHandler._check_surrounding_px(img_tmp, wall_dist, row, col):
                     #     # img_tmp[row][col] = VALID_PATH_COLOR
-                    img_tmp[row][col] = MapHandler._get_dist_heuristic(img_tmp, wall_dist, row, col)
+                    img_tmp[row][col] = MapHandler._get_dist_heuristic(img_tmp, wall_distance, row, col)
         return img_tmp
 
     @staticmethod
-    def create_graph(image, wall_dist):
+    def create_graph(image, wall_distance):
         """Create nodes for every path tile on the graph. Each node holds its own neighbors."""
-        graph = {}
+        map_graph = {}
         # img_tmp = np.copy(img)
 
         # Go over once to identify nodes
@@ -189,7 +190,7 @@ class MapHandler(object):
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
                 if 0 < col < w + 1 and 0 < row < h + 1 and image[row, col] != WALL_COLOR:
-                    dist = MapHandler._get_dist_heuristic(image, wall_dist, row, col)
+                    dist = MapHandler._get_dist_heuristic(image, wall_distance, row, col)
                     if (row, col) == (53, 2):
                         print("Aaaaa")
                     new_node = Node(row, col)
@@ -197,14 +198,14 @@ class MapHandler(object):
                     # neighbors = MapHandler.get_neighbor_coords(new_node, img)
                     # new_node.add_neighbors(MapHandler.get_neighbors_from_img(new_node, img, graph))
                     new_node.dist_from_wall = dist
-                    graph[(row, col)] = new_node
+                    map_graph[(row, col)] = new_node
 
         # get neighbors: requires going back over after it's been generated
-        for coords, node in graph.iteritems():
+        for coords, node in map_graph.iteritems():
             # node = graph[(row, col)]
-            node.add_neighbors(MapHandler.get_neighbors_from_img(node, image, graph, CLEAR_TERRAIN_MAP_COLOR))
+            node.add_neighbors(MapHandler.get_neighbors_from_img(node, image, map_graph, CLEAR_TERRAIN_MAP_COLOR))
 
-        return graph
+        return map_graph
 
     @staticmethod
     def get_first_path_tile(graph_map, image):
@@ -218,7 +219,7 @@ class MapHandler(object):
                     return graph_map[(row, col)]
 
     @staticmethod
-    def bfs(image, graph_map, starting_node, target_node, node_width=1, node_height=1):
+    def bfs(image, graph_map, starting_node, target_node):
         """BFS to find all nodes' neighbors"""
         image_tmp = np.copy(image)
         queue = []
@@ -265,7 +266,7 @@ class MapHandler(object):
         # No check to see if we're at goal since we'll break when the queue size is 0
 
     @staticmethod
-    def astar(image, graph_map, starting_node, target_node=None, node_width=1, node_height=1,
+    def astar(image, graph_map, starting_node, target_node=None,
               step_through_finished_path=False, step_through_explored_nodes=False, target_unexplored=False,
               original_image=None):
         """
@@ -291,12 +292,7 @@ class MapHandler(object):
         queue = PriorityQueue()  # TODO This doesn't seem to be clearing correctly
         parents = {}
         visited = set()
-        image_explored = None
         cur_node = starting_node if starting_node is not None else MapHandler.get_first_path_tile(graph_map, image_tmp)
-
-        if step_through_explored_nodes:
-            image_explored = np.copy(image)
-
         cur_node.dist_from_start = 0
 
         queue.put(cur_node)
@@ -306,7 +302,7 @@ class MapHandler(object):
             # print("Cur node is {}".format(cur_node))
 
             if step_through_explored_nodes:
-                image_tmp[cur_node.row][cur_node.col] = 254 * 255.0 / max(cur_node.dist_from_start, 0.1)
+                image_tmp[cur_node.row][cur_node.col] = 254 * 255.0 / max(float(cur_node.dist_from_start), 0.1)
                 MapHandler.show_img(image_tmp)
                 sleep(0.001)
                 cv2.waitKey(1)
@@ -314,7 +310,8 @@ class MapHandler(object):
             if cur_node in visited:
                 continue
 
-            elif target_unexplored and MapHandler.get_neighbor_coords(cur_node, original_image, UNEXPLORED_TERRAIN_COLOR):
+            elif target_unexplored and MapHandler.get_neighbor_coords(cur_node, original_image,
+                                                                      UNEXPLORED_TERRAIN_COLOR):
                 print("Found unexplored terrain.")
                 break
 
@@ -439,7 +436,7 @@ class MapHandler(object):
         return neighbors
 
     @staticmethod
-    def graph_to_json(graph, filepath="graph.json"):
+    def graph_to_json(adj_graph, filepath="graph.json"):
         """
         Serialize and save a graph to json
         Format:
@@ -448,7 +445,7 @@ class MapHandler(object):
 
         """
         output_dict = {}
-        for coords, node in graph.iteritems():
+        for coords, node in adj_graph.iteritems():
             output_dict["{},{}".format(coords[0], coords[1])] = node.to_dict()
 
         with open(filepath, "w") as f:
@@ -512,7 +509,7 @@ if __name__ == '__main__':
     # something is clicked while pathing is taking place
     actively_pathing = False
 
-    def on_mouse_click(event, x, y, flags, param):
+    def on_mouse_click(event, x, y, *_):
         global last_start_point, last_target_point, actively_pathing
         y /= MAP_DISPLAY_SCALING_FACTOR
         x /= MAP_DISPLAY_SCALING_FACTOR
@@ -536,15 +533,16 @@ if __name__ == '__main__':
                 try:
                     print("Attempting to pathfind...")
                     # TODO determine why this keeps getting stuck in inf loops
-                    MapHandler.astar(img_painted, graph,
+                    MapHandler.astar(img_painted,
+                                     graph,
                                      graph[last_target_point],
                                      graph[last_start_point],
                                      # target_unexplored=True,
-
+                                     # original_image=img_cropped),
                                      step_through_finished_path=True,
                                      step_through_explored_nodes=True,
                                      )
-                                     # original_image=img_cropped)
+
                     print("Finished pathfinding.")
                 except (KeyError, RuntimeError):
                     print >> stderr, "Ignoring exception:"
