@@ -43,6 +43,9 @@ class Navigator(object):
         Update the current map array to reflect new map data from ROS.
         Check to see if it is identical to the previous one before acting.
 
+        Identical can most likely be estimated by whether or not the rows and cols one pixel off of the cropped image's
+        border are still empty
+
         If we don't have any map data, this should fire off init_map
 
         We don't want to do too many complicated operations here, but instead just get the data that we need and pass it
