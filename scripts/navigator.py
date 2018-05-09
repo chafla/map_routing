@@ -1,8 +1,11 @@
 """Navigator node to bring a robot around the map"""
 
 import rospy
+from nav_msgs.msg import OccupancyGrid, Odometry
+from geometry_msgs.msg import Twist
 import map_handler
 from threading import Lock, Event, Thread
+from map_handler import MapHandler
 
 
 class Navigator(object):
@@ -17,15 +20,18 @@ class Navigator(object):
         self._cur_node = None
         self.cur_position = None
 
-        self.map_sub = None  # rospy subscriber
-        self.odom_sub = None
-        self.twist_pub = None
+        rospy.Subscriber("/map", OccupancyGrid, self.on_map_data)  # rospy subscriber
+        rospy.Subscriber("/odom", Odometry, self.on_odom_data)
+        self.twist_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=3)
         self._raw_map = None  # Map pulled from ROS
         self._raw_odom = None
+
+        self.rate = rospy.Rate(20)
 
         self._cur_twist = None
 
         self._map_data_lock = Lock()
+        self._odom_data_lock = Lock()
         self._twist_data_lock = Lock()
 
         self._is_active = Event()  # Fires when we want to close all loops gracefully
@@ -38,7 +44,7 @@ class Navigator(object):
             "free_thresh": -1,
         }
 
-    def on_map_data(self):
+    def on_map_data(self, map_msg):
         """
         Update the current map array to reflect new map data from ROS.
         Check to see if it is identical to the previous one before acting.
@@ -51,6 +57,13 @@ class Navigator(object):
         We don't want to do too many complicated operations here, but instead just get the data that we need and pass it
         off
         """
+
+        # Write out the data so we can figure out how it looks
+
+        print(map_msg.data)
+        self.rate.sleep()
+
+
         pass
 
     def init_map(self):
@@ -59,7 +72,7 @@ class Navigator(object):
         self._map_params
         """
 
-    def on_odom_data(self):
+    def on_odom_data(self, odom_msg):
         """
         Update the current odom data and create a relative reference within the map
         """
@@ -86,6 +99,10 @@ class Navigator(object):
         Start up threads
         """
 
+        rospy.spin()
+
 
 if __name__ == '__main__':
+
+    nav = Navigator()
     pass
