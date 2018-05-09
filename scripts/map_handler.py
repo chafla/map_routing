@@ -8,8 +8,8 @@ from Queue import PriorityQueue
 from time import time, sleep
 from sys import stderr
 
-MAP_NAME = "map_tb_world"
-# MAP_NAME = "double_zz_map"
+# MAP_NAME = "map_tb_world"
+MAP_NAME = "double_zz_map"
 VALID_PATH_COLOR = 50
 CLEAR_TERRAIN_MAP_COLOR = 254  # reee
 UNEXPLORED_TERRAIN_COLOR = 205
@@ -39,6 +39,8 @@ class Node(object):
         return self.dist_from_start - other.dist_from_start
 
     def __eq__(self, other):
+        if not isinstance(other, Node):
+            raise TypeError("Expected Node, got {}".format(type(other).__name__))
         return self.row == other.row and self.col == other.col
 
     def __ne__(self, other):
@@ -264,16 +266,25 @@ class MapHandler(object):
 
     @staticmethod
     def astar(image, graph_map, starting_node, target_node=None, node_width=1, node_height=1,
-              step_through_finished_path=False, step_through_explored_nodes=False, target_unexplored=False):
+              step_through_finished_path=False, step_through_explored_nodes=False, target_unexplored=False,
+              original_image=None):
         """
         More clever a-star to go through the maze.
         Rather than just pulling the pixels which are a safe distance from the wall, we will instead calculate nodes
         for every pixel that isn't a wall and then try to navigate. Our heuristic will reflect the distance
         to the nearest wall (as our target, the turtlebot3, has a nonzero physical size).
-        If target_unexplored is True and target_node is None, unknown tiles will be targeted.
+        If target_unexplored is True and target_node is None, unknown tiles will be targeted, and
+        original_image *must* be passed in.
         """
         graph_keys = graph_map.keys()
-        assert starting_node.coords in graph_keys and target_node.coords in graph_keys
+        assert starting_node.coords in graph_keys
+        if target_node is None:
+            assert target_unexplored
+            assert original_image is not None
+        else:
+            assert not target_unexplored
+            assert target_node.coords in graph_keys
+        # assert target_node is not None and target_node.coords in graph_keys
         assert ((target_node is None and target_unexplored is True) or
                 target_node is not None and target_unexplored is False)
         image_tmp = np.copy(image)
@@ -295,7 +306,7 @@ class MapHandler(object):
             # print("Cur node is {}".format(cur_node))
 
             if step_through_explored_nodes:
-                image_tmp[cur_node.row][cur_node.col] = 255 * 255.0 / max(cur_node.dist_from_start, 0.1)
+                image_tmp[cur_node.row][cur_node.col] = 254 * 255.0 / max(cur_node.dist_from_start, 0.1)
                 MapHandler.show_img(image_tmp)
                 sleep(0.001)
                 cv2.waitKey(1)
@@ -303,13 +314,17 @@ class MapHandler(object):
             if cur_node in visited:
                 continue
 
-            if cur_node == target_node:
+            elif target_unexplored and MapHandler.get_neighbor_coords(cur_node, original_image, UNEXPLORED_TERRAIN_COLOR):
+                print("Found unexplored terrain.")
                 break
 
-            # print(cur_node)
+            elif not target_unexplored and cur_node == target_node:
+                break
 
             if len(cur_node.neighbors) == 0:
                 raise RuntimeWarning("Node {} was searched but has no neighbors.".format(cur_node))
+
+            # neighbors = cur_node.neighbors
 
             for neighbor_node in cur_node.neighbors:
                 # if neighbor_node in parents:
@@ -330,7 +345,7 @@ class MapHandler(object):
 
         path_back = []
 
-        cur_node = target_node
+        # cur_node = target_node
 
         if step_through_explored_nodes:
             cv2.destroyWindow("Explored")
@@ -467,6 +482,8 @@ class MapHandler(object):
 
 if __name__ == '__main__':
 
+    wall_dist = 2
+
     # TODO Make this more modular
 
     with open("maps/{}.yaml".format(MAP_NAME)) as map_yaml:
@@ -481,11 +498,11 @@ if __name__ == '__main__':
     print("Cropped")
     print("Time: {}".format(time() - time_init))
     # MapHandler.show_img(img_cropped, window_name="Cropped")
-    img_painted = MapHandler.get_node_pixels(img_cropped, 2)
+    img_painted = MapHandler.get_node_pixels(img_cropped, wall_dist)
     print("Found valid tiles")
     print("Time: {}".format(time() - time_init))
     # Generate an adjacency graph which contains all the nodes and their neighbors
-    graph = MapHandler.create_graph(img_cropped, 2)
+    graph = MapHandler.create_graph(img_cropped, wall_dist)
 
     print("graph generated")
     # cv2.imshow("afafa", img_painted)
@@ -522,8 +539,12 @@ if __name__ == '__main__':
                     MapHandler.astar(img_painted, graph,
                                      graph[last_target_point],
                                      graph[last_start_point],
+                                     # target_unexplored=True,
+
                                      step_through_finished_path=True,
-                                     step_through_explored_nodes=True)
+                                     step_through_explored_nodes=True,
+                                     )
+                                     # original_image=img_cropped)
                     print("Finished pathfinding.")
                 except (KeyError, RuntimeError):
                     print >> stderr, "Ignoring exception:"
