@@ -2,6 +2,9 @@ import numpy as np
 import matplotlib.path as mpath
 import matplotlib.pyplot as plt
 import math
+
+import rospy
+from lidar_navigation.msg import Contour
 # Map is 30x30
 
 
@@ -58,7 +61,7 @@ class Bug(object):
         # Form: (dy, dx)
         return point_b[1] - point_a[1], point_b[0] - point_a[0]
 
-    def closest_point(self, x, y):
+    def get_closest_point(self, x, y):
         """
         Return the slope from the current point to the closest occupied point on the graph
         :return: (dy, dx)

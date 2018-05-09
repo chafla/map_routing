@@ -6,10 +6,10 @@ import math
 from Queue import PriorityQueue
 from time import time, sleep
 
-MAP_NAME = "double_zz_map"
+MAP_NAME = "map_tb_world"
 CLEAR_TERRAIN_COLOR = 254  # reee
-VALID_PATH_COLOR = 75
-WALL_COLOR = 255
+UNEXPLORED_TERRAIN_COLOR = 205
+WALL_COLOR = 0
 MAP_DISPLAY_SCALING_FACTOR = 7
 
 
@@ -96,11 +96,12 @@ class MapHandler(object):
         pass
 
     @staticmethod
-    def crop_to_contents(img):
-        width, height = img.shape
+    def crop_to_contents(image):
+        height, width = image.shape
         # Crop map
 
-        min_x = min_y = None
+        min_x = 10e50
+        min_y = 10e50
         max_x = -1
         max_y = 10e50
 
@@ -109,20 +110,19 @@ class MapHandler(object):
             for col in range(width):
 
                 # the color of the pixel is just the grayscale intensity (0-255)
-                intensity = img[row][col]
+                intensity = image[row][col]
                 if intensity != 205:  # The value for unexplored space
+                    min_x = min(col, min_x)
+                    min_y = min(row, min_y)
+                    max_x = max(col, max_x)
+                    # Check if the row we're checking is occupied
+                    # if it is, we'll set it below
                     last_row_occupied = True
 
-                    if min_x is None and min_y is None:  # Looking for the top and left bounds
-                        min_x = col
-                        min_y = row
-                    # Have to do this here so that it's still accounted for properly
-                    max_x = max(col, max_x)
-
-            if not last_row_occupied and min_x is not None and min_y is not None:
+            if not last_row_occupied and min_x < 10e50 and min_y < 10e50:
                 max_y = min(row, max_y)
-        img = img[min_y:max_y, min_x:max_x]
-        return img
+        image = image[min_y:max_y, min_x:max_x]
+        return image
 
     @staticmethod
     def _dist(x1, y1, x2, y2):
@@ -130,59 +130,60 @@ class MapHandler(object):
         return ret if ret != 0 else 1
 
     @staticmethod
-    def _get_dist_heuristic(img, wall_dist, row, col):
+    def _get_dist_heuristic(image, wall_dist, row, col):
         for i in range(row - wall_dist, row + wall_dist + 1):
-            if not 0 < i < img.shape[0]:
+            if not 0 < i < image.shape[0]:
                 continue
             for j in range(col - wall_dist, col + wall_dist + 1):
-                if not 0 < j < img.shape[1]:
+                if not 0 < j < image.shape[1]:
                     continue
                 # if i == row and j == col:
                 #     continue
-                if img[i][j] == 0:  # if we've found that it's within range of a black pixel
+                if image[i][j] == 0:  # if we've found that it's within range of a black pixel
                     dist = 255.0 * (float(wall_dist) / float(MapHandler._dist(row, col, i, j)))
                     return dist
-        return VALID_PATH_COLOR
+        return UNEXPLORED_TERRAIN_COLOR
 
     @staticmethod
-    def _check_surrounding_px(img, wall_dist, row, col):
+    def _check_surrounding_px(image, wall_dist, row, col):
         for i in range(row - wall_dist, row + wall_dist + 1):
             for j in range(col - wall_dist, col + wall_dist + 1):
-                if img[i][j] == 0:  # if it's a black pixel
+                if image[i][j] == 0:  # if it's a black pixel
                     return False
         return True
 
     @staticmethod
-    def get_node_pixels(img, wall_dist):
+    def get_node_pixels(image, wall_dist):
         """Get the pixels which are a given distance away from any other pixels"""
-        img_tmp = np.copy(img)
-        w, h = img_tmp.shape
-        for row in range(h):
-            for col in range(w):
+        img_tmp = np.copy(image)
+        h, w = img_tmp.shape
+        for row in range(h - 1):
+            for col in range(w - 1):
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
-                if wall_dist < col < w - wall_dist - 1 and wall_dist < row < h - wall_dist - 1 and img_tmp[row][col] != 0:
+                # The != 0 is there in case it's a wall pixel
+                if wall_dist < col < w - wall_dist - 1 and wall_dist < row < h - wall_dist - 1 and img_tmp[row][col] != WALL_COLOR:
                     # if MapHandler._check_surrounding_px(img_tmp, wall_dist, row, col):
                     #     # img_tmp[row][col] = VALID_PATH_COLOR
                     img_tmp[row][col] = MapHandler._get_dist_heuristic(img_tmp, wall_dist, row, col)
         return img_tmp
 
     @staticmethod
-    def create_graph(img, wall_dist):
+    def create_graph(image, wall_dist):
         """Create nodes for every path tile on the graph. Each node holds its own neighbors."""
         graph = {}
         # img_tmp = np.copy(img)
 
         # Go over once to identify nodes
-        h, w = img.shape  # HEIGHT - WIDTH
-        print(img.shape)
+        h, w = image.shape  # HEIGHT - WIDTH
+        print(image.shape)
         for row in range(h):
             for col in range(w):
                 # print(w)
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
-                if 0 < col < w + 1 and 0 < row < h + 1:
-                    dist = MapHandler._get_dist_heuristic(img, wall_dist, row, col)
+                if 0 < col < w + 1 and 0 < row < h + 1 and image[row, col] != WALL_COLOR:
+                    dist = MapHandler._get_dist_heuristic(image, wall_dist, row, col)
                     if (row, col) == (53, 2):
                         print("Aaaaa")
                     new_node = Node(row, col)
@@ -195,20 +196,20 @@ class MapHandler(object):
         # get neighbors: requires going back over after it's been generated
         for coords, node in graph.iteritems():
             # node = graph[(row, col)]
-            node.add_neighbors(MapHandler.get_neighbors_from_img(node, img, graph, CLEAR_TERRAIN_COLOR))
+            node.add_neighbors(MapHandler.get_neighbors_from_img(node, image, graph, CLEAR_TERRAIN_COLOR))
 
         return graph
 
     @staticmethod
-    def get_first_path_tile(graph, img):
-        h, w = img.shape
-        print(img.shape)
+    def get_first_path_tile(graph_map, image):
+        h, w = image.shape
+        print(image.shape)
 
         # Get the first tile
         for row in range(h - 1):  # For oob
             for col in range(w - 1):
-                if img[row][col] == VALID_PATH_COLOR:
-                    return graph[(row, col)]
+                if image[row][col] == UNEXPLORED_TERRAIN_COLOR:
+                    return graph_map[(row, col)]
 
     @staticmethod
     def bfs(image, graph_map, starting_node, target_node, node_width=1, node_height=1):
@@ -332,46 +333,46 @@ class MapHandler(object):
         return path_back
 
     @staticmethod
-    def upscale_img(img, fx=MAP_DISPLAY_SCALING_FACTOR, fy=MAP_DISPLAY_SCALING_FACTOR):
-        return cv2.resize(img, None, fx=fx, fy=fy, interpolation=cv2.INTER_AREA)
+    def upscale_img(image, fx=MAP_DISPLAY_SCALING_FACTOR, fy=MAP_DISPLAY_SCALING_FACTOR):
+        return cv2.resize(image, None, fx=fx, fy=fy, interpolation=cv2.INTER_AREA)
 
     @staticmethod
-    def get_neighbor_coords(node, img, target_color=VALID_PATH_COLOR):
+    def get_neighbor_coords(node, image, target_color=UNEXPLORED_TERRAIN_COLOR):
         """Return the coordinates of all valid neighbor path tiles"""
         neighbors = []
-        print(img[node.row, node.col])
-        if node.col > 0 and img[node.row][node.col - 1] == target_color:
+        print(image[node.row, node.col])
+        if node.col > 0 and image[node.row][node.col - 1] == target_color:
             neighbors.append((node.row, node.col - 1))
 
-        if node.col < img.shape[1] and img[node.row][node.col + 1] == target_color:
+        if node.col < image.shape[1] and image[node.row][node.col + 1] == target_color:
             neighbors.append((node.row, node.col + 1))
 
-        if node.row > 0 and img[node.row - 1][node.col] == target_color:
+        if node.row > 0 and image[node.row - 1][node.col] == target_color:
             neighbors.append((node.row - 1, node.col))
 
-        if node.row < img.shape[0] and img[node.row + 1][node.col] == target_color:
+        if node.row < image.shape[0] and image[node.row + 1][node.col] == target_color:
             neighbors.append((node.row + 1, node.col))
 
         return neighbors
 
     @staticmethod
-    def get_neighbors_from_img(node, img, graph, target_color=VALID_PATH_COLOR):
+    def get_neighbors_from_img(node, image, adj_graph, target_color=UNEXPLORED_TERRAIN_COLOR):
         """Get the neighbor nodes based on the map."""
         # Messy but grabs neighbors efficiently
         # print(img.size)
         neighbors = []
         # print(img[node.row, node.col])
-        if node.col > 0 and img[node.row][node.col - 1] == target_color:
-            neighbors.append(graph[(node.row, node.col - 1)])
+        if node.col > 0 and image[node.row][node.col - 1] == target_color:
+            neighbors.append(adj_graph[(node.row, node.col - 1)])
 
-        if node.col < img.shape[1] - 1 and img[node.row][node.col + 1] == target_color:
-            neighbors.append(graph[(node.row, node.col + 1)])
+        if node.col < image.shape[1] - 1 and image[node.row][node.col + 1] == target_color:
+            neighbors.append(adj_graph[(node.row, node.col + 1)])
 
-        if node.row > 0 and img[node.row - 1][node.col] == target_color:
-            neighbors.append(graph[(node.row - 1, node.col)])
+        if node.row > 0 and image[node.row - 1][node.col] == target_color:
+            neighbors.append(adj_graph[(node.row - 1, node.col)])
 
-        if node.row < img.shape[0] - 1 and img[node.row + 1][node.col] == target_color:
-            neighbors.append(graph[(node.row + 1, node.col)])
+        if node.row < image.shape[0] - 1 and image[node.row + 1][node.col] == target_color:
+            neighbors.append(adj_graph[(node.row + 1, node.col)])
 
         return neighbors
 
@@ -381,16 +382,16 @@ class MapHandler(object):
         # print(img.size)
         neighbors = []
         print(img[node.row, node.col])
-        if node.col > 0 and img[node.row][node.col - 1] == VALID_PATH_COLOR:
+        if node.col > 0 and img[node.row][node.col - 1] == UNEXPLORED_TERRAIN_COLOR:
             neighbors.append(graph[(node.row, node.col - 1)])
 
-        if node.col < img.shape[1] and img[node.row][node.col + 1] == VALID_PATH_COLOR:
+        if node.col < img.shape[1] and img[node.row][node.col + 1] == UNEXPLORED_TERRAIN_COLOR:
             neighbors.append(graph[(node.row, node.col + 1)])
 
-        if node.row > 0 and img[node.row - 1][node.col] == VALID_PATH_COLOR:
+        if node.row > 0 and img[node.row - 1][node.col] == UNEXPLORED_TERRAIN_COLOR:
             neighbors.append(graph[(node.row - 1, node.col)])
 
-        if node.row < img.shape[0] and img[node.row + 1][node.col] == VALID_PATH_COLOR:
+        if node.row < img.shape[0] and img[node.row + 1][node.col] == UNEXPLORED_TERRAIN_COLOR:
             neighbors.append(graph[(node.row + 1, node.col)])
 
         return neighbors
@@ -455,30 +456,18 @@ if __name__ == '__main__':
     img_painted = MapHandler.get_node_pixels(img_cropped, 2)
     print("Found valid tiles")
     print("Time: {}".format(time() - time_init))
-    # img_painted = cv2.resize()
+    # Generate an adjacency graph which contains all the nodes and their neighbors
     graph = MapHandler.create_graph(img_cropped, 2)
-    # cv2.imshow("cropped", img_cropped)
-    # print(graph)
-    # path = MapHandler.bfs(img_painted, graph, Node(55, 13), Node(7, 4))
-    # path = MapHandler.astar(img_painted, graph, graph.get((6, 54)), graph.get((55, 55)), show_progress=True)
-
-    # MapHandler.graph_to_json(graph, "test.json")
-    #
-    # loaded_graph = MapHandler.graph_from_json("test.json")
-    # MapHandler.astar(img_painted, loaded_graph, graph.get((6, 54)), graph.get((55, 55)))
-    # # img_painted = cv2.resize(img_painted, None, fx=3, fy=3)
-    #
-    # print("Path:", path)
-    # print(path)
 
     # cv2.imshow("afafa", img_painted)
     last_start_point = (0, 0)
     last_target_point = (0, 0)
+    # Without this control variable, it tends to get stuck in infinite loops when
+    # something is clicked while pathing is taking place
     actively_pathing = False
 
     def on_mouse_click(event, x, y, flags, param):
         global last_start_point, last_target_point, actively_pathing
-        # TODO Make the x/y universal
         y /= MAP_DISPLAY_SCALING_FACTOR
         x /= MAP_DISPLAY_SCALING_FACTOR
         if event == cv2.EVENT_LBUTTONUP:
@@ -486,7 +475,7 @@ if __name__ == '__main__':
 
         if event == cv2.EVENT_LBUTTONDOWN:
             # First click
-            if last_start_point == (0, 0):
+            if last_start_point == (0, 0) and not actively_pathing:
                 last_start_point = MapHandler.cartesian_to_row_major(x, y)
 
                 img_tmp = np.copy(img_painted)
@@ -495,19 +484,28 @@ if __name__ == '__main__':
                 print("Setting start to ({}, {})".format(x, y))
 
             # second click
-            elif last_target_point == (0, 0):
+            elif last_target_point == (0, 0) and not actively_pathing:
                 last_target_point = MapHandler.cartesian_to_row_major(x, y)
                 print("Setting target to ({}, {})".format(x, y))
                 # reverse them since it prints as it backtracks
                 actively_pathing = True
-                MapHandler.astar(img_painted, graph,
-                                 graph[last_target_point],
-                                 graph[last_start_point],
-                                 show_progress=True)
-                actively_pathing = False
+                try:
+                    print("Attempting to pathfind...")
+                    MapHandler.astar(img_painted, graph,
+                                     graph[last_target_point],
+                                     graph[last_start_point],
+                                     show_progress=True)
+                except KeyError:
+                    # last_target_point or last_start_point probs aren't in the graph
+                    print("Invalid point(s) selected!")
+                    last_start_point = (0, 0)
+                    last_target_point = (0, 0)
+                    MapHandler.show_img(img_painted)
+                finally:
+                    actively_pathing = False
 
             # reset it
-            else:
+            elif not actively_pathing:
                 print("Resetting: setting start to ({}, {})".format(x, y))
                 # cv2.destroyWindow("Path")
                 last_start_point = MapHandler.cartesian_to_row_major(x, y)
