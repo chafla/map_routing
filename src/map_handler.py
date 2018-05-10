@@ -492,6 +492,7 @@ if __name__ == '__main__':
 
     time_init = time()
     img_cropped = MapHandler.crop_to_contents(img)
+    print(img.dtype)
     print("Cropped")
     print("Time: {}".format(time() - time_init))
     # MapHandler.show_img(img_cropped, window_name="Cropped")
