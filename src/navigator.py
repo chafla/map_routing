@@ -11,6 +11,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import cv2
 from map_handler import MapHandler, WALL_COLOR, UNEXPLORED_TERRAIN_COLOR, VALID_PATH_COLOR, CLEAR_TERRAIN_MAP_COLOR
+from time import sleep
 
 
 GMAP_TILE_FULL = 100
@@ -27,10 +28,14 @@ class Navigator(object):
         self._pure_pursuit_pid = None
         self._adj_graph = {}
 
+        self._robot_visited_tiles = set()
+
         self._target_node = None
         self._cur_node = None
         self.cur_position = None
         self._has_read_map_data = False
+
+        self._origin_coords = (0, 0)
 
         self._raw_map = None  # Map pulled from ROS
         self._raw_odom = None
@@ -114,12 +119,22 @@ class Navigator(object):
         self._map_params["origin"] = (metadata.origin.position.x,
                                       metadata.origin.position.y)
 
+        origin_row = int(metadata.origin.position.x / metadata.resolution)
+        origin_col = int(-metadata.origin.position.y / metadata.resolution)
+        self._origin_coords = (origin_row, origin_col)
+        # origin appears to be offset from the center of the map so if it's -10
+        # it should be height / 2 + origin.y width / 2 + origin.x
+
+        # self._origin_coords = (int((metadata.height / 2) + metadata.origin.position.y),
+        #                        int((metadata.width / 2) + metadata.origin.position.x))
+
         # Create the map in a way that we can handle
         new_map_array = np.zeros((self._map_params["height"],
                                  self._map_params["width"]),
                                  np.uint8)
 
         ros_map_data = map_msg.data
+        print(self._origin_coords)
 
         orig_map_arr_idx = 0
 
@@ -137,6 +152,14 @@ class Navigator(object):
                 new_map_array[i][j] = ros_map_pixel_value
                 orig_map_arr_idx += 1
 
+        new_map_array[origin_row][origin_col] = 175
+        self.map_array = np.copy(new_map_array)
+
+        new_map_array[self.cur_position[0]][self.cur_position[1]] = 200
+
+        for r, c in self._robot_visited_tiles:
+            new_map_array[r][c] = 173
+
         cv2.imshow("aaaaa", new_map_array)
         cv2.waitKey(0)
         with open("asdf.txt", "a") as outfile:
@@ -149,7 +172,32 @@ class Navigator(object):
         """
         Update the current odom data and create a relative reference within the map
         """
-        pass
+        cur_position_point = odom_msg.pose.pose.position
+
+        position_row = int(-cur_position_point.y / self._map_params["resolution"]) + self._origin_coords[0]
+        position_col = int(cur_position_point.x / self._map_params["resolution"]) + self._origin_coords[1]
+
+        self.cur_position = (position_row, position_col)
+
+        self._robot_visited_tiles.add(self.cur_position)
+
+        # if self.map_array is None:
+        #     return
+        #
+        # map_arr = np.copy(self.map_array)
+        #
+        # for r, c in self._robot_visited_tiles:
+        #     map_arr[r][c] = 173
+        #
+        # cv2.imshow("aaaaa", map_arr)
+        # cv2.waitKey(1)
+        #
+        # sleep(0.25)
+
+        # self.rate.sleep()
+
+        # print(position_row, position_col)
+
 
     def twist_pub_thread(self):
         """
