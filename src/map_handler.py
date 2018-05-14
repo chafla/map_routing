@@ -102,7 +102,13 @@ class MapHandler(object):
         pass
 
     @staticmethod
-    def crop_to_contents(image):
+    def crop_to_contents(image, unexplored_space_color=UNEXPLORED_TERRAIN_COLOR):
+        min_x, min_y, max_x, max_y = MapHandler.get_outermost_coords(image,
+                                                                     unexplored_space_color=unexplored_space_color)
+        return image[min_y:max_y, min_x:max_x]
+
+    @staticmethod
+    def get_outermost_coords(image, unexplored_space_color=UNEXPLORED_TERRAIN_COLOR):
         height, width = image.shape
         # Crop map
 
@@ -117,7 +123,7 @@ class MapHandler(object):
 
                 # the color of the pixel is just the grayscale intensity (0-255)
                 intensity = image[row][col]
-                if intensity != 205:  # The value for unexplored space
+                if intensity != unexplored_space_color:  # The value for unexplored space
                     min_x = min(col, min_x)
                     min_y = min(row, min_y)
                     max_x = max(col, max_x)
@@ -127,8 +133,8 @@ class MapHandler(object):
 
             if not last_row_occupied and min_x < 10e50 and min_y < 10e50:
                 max_y = min(row, max_y)
-        image = image[min_y:max_y, min_x:max_x]
-        return image
+
+        return min_x, min_y, max_x, max_y
 
     @staticmethod
     def _dist(x1, y1, x2, y2):
@@ -145,9 +151,10 @@ class MapHandler(object):
                     continue
                 # if i == row and j == col:
                 #     continue
-                if image[i][j] == 0:  # if we've found that it's within range of a black pixel
+                if image[i][j] == WALL_COLOR:  # if we've found that it's within range of a black pixel
                     dist = 255.0 * (float(wall_distance) / float(MapHandler._dist(row, col, i, j)))
                     return dist
+
         return VALID_PATH_COLOR
 
     @staticmethod
@@ -159,16 +166,21 @@ class MapHandler(object):
         return True
 
     @staticmethod
-    def get_node_pixels(image, wall_distance):
-        """Get the pixels which are a given distance away from any other pixels"""
+    def get_node_pixels(image, wall_distance, outermost_coords=None):
+        """
+        Get the pixels which are a given distance away from any other pixels.
+        Outermost_coords should be a 4-part tuple consisting of (min_x, min_y, max_x, max_y) for thresholding.
+        """
         img_tmp = np.copy(image)
         h, w = img_tmp.shape
-        for row in range(h - 1):
-            for col in range(w - 1):
+        min_x, min_y, max_x, max_y = outermost_coords if outermost_coords is not None else (0, 0, w, h)
+
+        for row in range(min_y, max_y - 1):
+            for col in range(min_x, max_x - 1):
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
                 # The != 0 is there in case it's a wall pixel
-                if wall_distance < col < w - wall_distance - 1 and wall_distance < row < h - wall_distance - 1 and \
+                if wall_distance < col < max_x - wall_distance - 1 and wall_distance < row < max_y - wall_distance - 1 and \
                         img_tmp[row][col] != WALL_COLOR:
                     # if MapHandler._check_surrounding_px(img_tmp, wall_dist, row, col):
                     #     # img_tmp[row][col] = VALID_PATH_COLOR
@@ -176,23 +188,27 @@ class MapHandler(object):
         return img_tmp
 
     @staticmethod
-    def create_graph(image, wall_distance):
-        """Create nodes for every path tile on the graph. Each node holds its own neighbors."""
+    def create_graph(image, wall_distance, outermost_coords=None):
+        """
+        Create nodes for every path tile on the graph. Each node holds its own neighbors.
+        """
         map_graph = {}
         # img_tmp = np.copy(img)
 
         # Go over once to identify nodes
         h, w = image.shape  # HEIGHT - WIDTH
+
+        min_x, min_y, max_x, max_y = outermost_coords if outermost_coords is not None else (0, 0, w, h)
         print(image.shape)
-        for row in range(h):
-            for col in range(w):
+        for row in range(max_y):
+            for col in range(max_x):
                 # print(w)
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
-                if 0 < col < w + 1 and 0 < row < h + 1 and image[row, col] != WALL_COLOR:
+                if 0 < col < max_x + 1 and 0 < row < max_y + 1 and image[row, col] != WALL_COLOR:
                     dist = MapHandler._get_dist_heuristic(image, wall_distance, row, col)
-                    if (row, col) == (53, 2):
-                        print("Aaaaa")
+                    # if (row, col) == (53, 2):
+                    #     print("Aaaaa")
                     new_node = Node(row, col)
                     # TODO When we go in here there's a chance not all neighbors have been generated
                     # neighbors = MapHandler.get_neighbor_coords(new_node, img)
@@ -268,7 +284,8 @@ class MapHandler(object):
     @staticmethod
     def astar(image, graph_map, starting_node, target_node=None,
               step_through_finished_path=False, step_through_explored_nodes=False, target_unexplored=False,
-              original_image=None):
+              original_image=None, display_image=False, outermost_coords=None,
+              unexplored_terrain_color=UNEXPLORED_TERRAIN_COLOR):
         """
         More clever a-star to go through the maze.
         Rather than just pulling the pixels which are a safe distance from the wall, we will instead calculate nodes
@@ -288,6 +305,12 @@ class MapHandler(object):
         # assert target_node is not None and target_node.coords in graph_keys
         assert ((target_node is None and target_unexplored is True) or
                 target_node is not None and target_unexplored is False)
+
+        min_x, min_y, max_x, max_y = outermost_coords if outermost_coords is not None else (0, 0, img.shape[1], img.shape[0])
+
+        if isinstance(starting_node, tuple):
+            starting_node = graph.get(starting_node)
+
         image_tmp = np.copy(image)
         queue = PriorityQueue()  # TODO This doesn't seem to be clearing correctly
         parents = {}
@@ -296,6 +319,8 @@ class MapHandler(object):
         cur_node.dist_from_start = 0
 
         queue.put(cur_node)
+
+        print("Searching...")
 
         while visited != graph_keys and queue.qsize() > 0:
             cur_node = queue.get()
@@ -310,8 +335,13 @@ class MapHandler(object):
             if cur_node in visited:
                 continue
 
+            elif (not min_x < cur_node.col < max_x) or (not min_y < cur_node.row < max_y):
+                continue
+
+            # If we're targeting unexplored terrain, we want to reference the original image (not the painted one)
+            # to find it, since we've already overridden the colors.
             elif target_unexplored and MapHandler.get_neighbor_coords(cur_node, original_image,
-                                                                      UNEXPLORED_TERRAIN_COLOR):
+                                                                      unexplored_terrain_color):
                 print("Found unexplored terrain.")
                 break
 
@@ -365,10 +395,11 @@ class MapHandler(object):
             # Single element path
             print("Could not find a path.")
             return []
-
-        image_tmp = cv2.resize(image_tmp, None, fx=MAP_DISPLAY_SCALING_FACTOR,
-                               fy=MAP_DISPLAY_SCALING_FACTOR, interpolation=cv2.INTER_AREA)
-        cv2.imshow("Path", image_tmp)
+        # oh this is really nasty
+        if display_image:
+            image_tmp = cv2.resize(image_tmp, None, fx=MAP_DISPLAY_SCALING_FACTOR,
+                                   fy=MAP_DISPLAY_SCALING_FACTOR, interpolation=cv2.INTER_AREA)
+            cv2.imshow("Path", image_tmp)
         return path_back
 
     @staticmethod
@@ -379,7 +410,7 @@ class MapHandler(object):
     def get_neighbor_coords(node, image, target_color=UNEXPLORED_TERRAIN_COLOR):
         """Return the coordinates of all valid neighbor path tiles"""
         neighbors = []
-        print(image[node.row, node.col])
+        # print(image[node.row, node.col])
         if node.col > 0 and image[node.row][node.col - 1] == target_color:
             neighbors.append((node.row, node.col - 1))
 
@@ -542,6 +573,7 @@ if __name__ == '__main__':
                                      # original_image=img_cropped),
                                      step_through_finished_path=True,
                                      step_through_explored_nodes=True,
+                                     display_image=True,
                                      )
 
                     print("Finished pathfinding.")
