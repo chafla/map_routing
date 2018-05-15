@@ -381,7 +381,7 @@ class MapHandler(object):
         while cur_node != starting_node:
             # print(cur_node)
             path_back.append(cur_node)
-            image_tmp[cur_node.row][cur_node.col] = 0
+            image_tmp[cur_node.row][cur_node.col] = 255 - image_tmp[cur_node.row][cur_node.col]
             cur_node = parents[cur_node]
             if step_through_finished_path:
 

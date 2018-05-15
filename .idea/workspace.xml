@@ -3,6 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="334ae8bf-b35c-43a7-ab39-4327c275e7ef" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change beforePath="$PROJECT_DIR$/src/map_handler.py" afterPath="$PROJECT_DIR$/src/map_handler.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -16,7 +17,7 @@
       <file leaf-file-name="navigator.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/navigator.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1667">
+            <state relative-caret-position="4752">
               <caret line="277" column="120" lean-forward="false" selection-start-line="277" selection-start-column="120" selection-end-line="277" selection-end-column="120" />
               <folding>
                 <element signature="e#72#84#0" expanded="true" />
@@ -28,8 +29,8 @@
       <file leaf-file-name="map_handler.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/map_handler.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-2484">
-              <caret line="42" column="71" lean-forward="false" selection-start-line="42" selection-start-column="71" selection-end-line="42" selection-end-column="71" />
+            <state relative-caret-position="279">
+              <caret line="383" column="95" lean-forward="false" selection-start-line="383" selection-start-column="95" selection-end-line="383" selection-end-column="95" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -37,10 +38,17 @@
           </provider>
         </entry>
       </file>
+      <file leaf-file-name="test_nav_map.png" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/test_nav_map.png">
+          <provider selected="true" editor-type-id="images">
+            <state />
+          </provider>
+        </entry>
+      </file>
       <file leaf-file-name="package.xml" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/package.xml">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="273">
+            <state relative-caret-position="1170">
               <caret line="65" column="23" lean-forward="false" selection-start-line="65" selection-start-column="23" selection-end-line="65" selection-end-column="23" />
               <folding />
             </state>
@@ -82,18 +90,6 @@
             <state relative-caret-position="0">
               <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
               <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="pure_pursuit.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/src/pure_pursuit.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="0">
-              <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-              <folding>
-                <element signature="e#0#18#0" expanded="true" />
-              </folding>
             </state>
           </provider>
         </entry>
@@ -144,8 +140,8 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/package.xml" />
-        <option value="$PROJECT_DIR$/src/map_handler.py" />
         <option value="$PROJECT_DIR$/src/navigator.py" />
+        <option value="$PROJECT_DIR$/src/map_handler.py" />
       </list>
     </option>
   </component>
@@ -172,8 +168,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
-      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -196,6 +190,8 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scratches" />
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -286,23 +282,24 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="27" width="1920" height="1053" extended-state="6" />
+    <editor active="true" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.12183544" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3307436" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32852387" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32852387" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33518314" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
     </layout>
   </component>
@@ -320,21 +317,10 @@
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/src/path_finder.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="0">
-          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#31#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/.PyCharmCE2017.3/system/python_stubs/-1247972723/numpy/core/multiarray.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="43272">
           <caret line="2404" column="4" lean-forward="false" selection-start-line="2404" selection-start-column="4" selection-end-line="2404" selection-end-column="4" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -358,7 +344,7 @@
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
-            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#0#18#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -410,7 +396,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="54144">
           <caret line="3008" column="17" lean-forward="false" selection-start-line="3008" selection-start-column="17" selection-end-line="3008" selection-end-column="17" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -418,7 +403,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="43272">
           <caret line="2404" column="4" lean-forward="false" selection-start-line="2404" selection-start-column="4" selection-end-line="2404" selection-end-column="4" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -476,7 +460,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="54144">
           <caret line="3008" column="17" lean-forward="false" selection-start-line="3008" selection-start-column="17" selection-end-line="3008" selection-end-column="17" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -484,7 +467,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="43272">
           <caret line="2404" column="4" lean-forward="false" selection-start-line="2404" selection-start-column="4" selection-end-line="2404" selection-end-column="4" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -540,7 +522,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="54144">
           <caret line="3008" column="17" lean-forward="false" selection-start-line="3008" selection-start-column="17" selection-end-line="3008" selection-end-column="17" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -558,7 +539,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="43272">
           <caret line="2404" column="4" lean-forward="false" selection-start-line="2404" selection-start-column="4" selection-end-line="2404" selection-end-column="4" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -645,7 +625,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="53262">
           <caret line="3008" column="17" lean-forward="false" selection-start-line="3008" selection-start-column="17" selection-end-line="3008" selection-end-column="17" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -653,7 +632,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="43272">
           <caret line="2404" column="4" lean-forward="false" selection-start-line="2404" selection-start-column="4" selection-end-line="2404" selection-end-column="4" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -662,7 +640,7 @@
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
           <folding>
-            <element signature="e#0#18#0" expanded="true" />
+            <element signature="e#0#18#0" expanded="false" />
           </folding>
         </state>
       </provider>
@@ -677,7 +655,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/package.xml">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="273">
+        <state relative-caret-position="1170">
           <caret line="65" column="23" lean-forward="false" selection-start-line="65" selection-start-column="23" selection-end-line="65" selection-end-column="23" />
           <folding />
         </state>
@@ -721,7 +699,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/src/navigator.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1667">
+        <state relative-caret-position="4752">
           <caret line="277" column="120" lean-forward="false" selection-start-line="277" selection-start-column="120" selection-end-line="277" selection-end-column="120" />
           <folding>
             <element signature="e#72#84#0" expanded="true" />
@@ -729,10 +707,15 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/test_nav_map.png">
+      <provider selected="true" editor-type-id="images">
+        <state />
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/map_handler.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2484">
-          <caret line="42" column="71" lean-forward="false" selection-start-line="42" selection-start-column="71" selection-end-line="42" selection-end-column="71" />
+        <state relative-caret-position="279">
+          <caret line="383" column="95" lean-forward="false" selection-start-line="383" selection-start-column="95" selection-end-line="383" selection-end-column="95" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
