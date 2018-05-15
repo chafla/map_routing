@@ -16,7 +16,7 @@ from map_handler import MapHandler, WALL_COLOR, UNEXPLORED_TERRAIN_COLOR, VALID_
 from time import sleep, time
 import math
 
-
+# Constants for the values that gmapping sets the values to in the int8 returned over the /map topic
 GMAP_TILE_FULL = 100
 GMAP_TILE_UNDISCOVERED = -1
 GMAP_TILE_EMPTY = 0
@@ -37,6 +37,7 @@ class Navigator(object):
         # TODO The current offset provided by the TF data
         # Whenever we reference a set of points that we have saved, they should always be stored directly as they are
         # but then updated with the offset when read.
+        # in (x, y) form
         self._cur_offset = None
 
         self._target_node = None
@@ -184,12 +185,12 @@ class Navigator(object):
 
         new_map_array[self.cur_position[0]][self.cur_position[1]] = 200
 
-        # TODO cropping speeds things up immensely but it then throws off all of our other coordinates
-        # Should set min coords/max coords to search for
-        # Seriously. It's a matter of ~1.6s to generate a graph for the cropped coords but 27sx for uncropped
-
         crop_ts = time()
         # cropped_img = MapHandler.crop_to_contents(np.copy(new_map_array), 75)
+        # Get the outermost pixels so that we can constrain our search area.
+        # Dealing with the full map changes these times from 1-3s to over 27s.
+
+        # Seriously. Adding a minimum value to create_graph cut the time by 13s.
         self._outermost_map_values = MapHandler.get_outermost_coords(new_map_array, 75)
         print("Generating graph. Cropping took {}s to complete.".format(time() - crop_ts))
         graph_ts = time()
@@ -209,6 +210,8 @@ class Navigator(object):
                                     unexplored_terrain_color=75)
             for tile in path:
                 self._img_painted[tile.row][tile.col] = 5
+
+            self._cur_target_path = path
 
             self._img_painted = MapHandler.upscale_img(self._img_painted, fx=3, fy=3)
 
@@ -269,6 +272,11 @@ class Navigator(object):
         x_rot += self._origin_coords[1]
 
         return int(x_rot), int(y_rot)
+
+    def _check_boundaries(self, new_image):
+        """
+        Check the spaces just outside those that we previously had marked as our boundaries to see if we need to recrop.
+        """
 
     def on_odom_data(self, odom_msg):
         """
@@ -364,11 +372,11 @@ class Navigator(object):
                     map_arr[adj_row_rot][adj_col_rot] = 150
                     # adj_row += self.row_offset
                     # adj_col += self.col_offset
-                    # # print(adj_row, adj_col)
-                    # # adj_row = int(adj_row + (self._cur_offset[1] / self._map_params["resolution"]))
-                    # # adj_col = int(adj_col + (self._cur_offset[0] / self._map_params["resolution"]))
-                    # #
-                    # # print(adj_row, adj_col)
+                    # print(adj_row, adj_col)
+                    # adj_row = int(adj_row + (self._cur_offset[1] / self._map_params["resolution"]))
+                    # adj_col = int(adj_col + (self._cur_offset[0] / self._map_params["resolution"]))
+                    #
+                    # print(adj_row, adj_col)
                     # map_arr[adj_row][adj_col] = 173
 
                 if self._img_painted is not None:
@@ -380,8 +388,12 @@ class Navigator(object):
 
     def twist_pub_thread(self):
         """
-        Publish twist values as they are generated
+        Publish twist values as they are generated.
+        We should act on path basically as long as len(path) > 0. What we want to do go through each path node in order,
+        seeing as how it should be generated in order from first to last. Then, each time this runs through, set each
+        value on the path within a given radius as visited, then pure pursuit to the next closest path tile.
         """
+
 
     def update_map_thread(self):
         """

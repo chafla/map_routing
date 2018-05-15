@@ -40,7 +40,7 @@ class Node(object):
 
     def __eq__(self, other):
         if not isinstance(other, Node):
-            raise TypeError("Expected Node, got {}".format(type(other).__name__))
+            raise TypeError("Object of type Node can not be compared to {}".format(type(other).__name__))
         return self.row == other.row and self.col == other.col
 
     def __ne__(self, other):
@@ -158,10 +158,10 @@ class MapHandler(object):
         return VALID_PATH_COLOR
 
     @staticmethod
-    def _check_surrounding_px(image, wall_distance, row, col):
+    def _check_surrounding_px(image, wall_distance, row, col, wall_color=WALL_COLOR):
         for i in range(row - wall_distance, row + wall_distance + 1):
             for j in range(col - wall_distance, col + wall_distance + 1):
-                if image[i][j] == 0:  # if it's a black pixel
+                if image[i][j] == wall_color:  # if it's a black pixel
                     return False
         return True
 
@@ -180,7 +180,7 @@ class MapHandler(object):
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
                 # The != 0 is there in case it's a wall pixel
-                if wall_distance < col < max_x - wall_distance - 1 and wall_distance < row < max_y - wall_distance - 1 and \
+                if min_x + wall_distance < col < max_x - wall_distance - 1 and min_y + wall_distance < row < max_y - wall_distance - 1 and \
                         img_tmp[row][col] != WALL_COLOR:
                     # if MapHandler._check_surrounding_px(img_tmp, wall_dist, row, col):
                     #     # img_tmp[row][col] = VALID_PATH_COLOR
@@ -200,12 +200,12 @@ class MapHandler(object):
 
         min_x, min_y, max_x, max_y = outermost_coords if outermost_coords is not None else (0, 0, w, h)
         print(image.shape)
-        for row in range(max_y):
-            for col in range(max_x):
+        for row in range(min_y, max_y):
+            for col in range(min_x, max_x):
                 # print(w)
                 # watch for out of range
                 # The -1 and +1 in _check_surrounding_px are because otherwise it stops short
-                if 0 < col < max_x + 1 and 0 < row < max_y + 1 and image[row, col] != WALL_COLOR:
+                if min_x < col < max_x + 1 and min_y < row < max_y + 1 and image[row, col] != WALL_COLOR:
                     dist = MapHandler._get_dist_heuristic(image, wall_distance, row, col)
                     # if (row, col) == (53, 2):
                     #     print("Aaaaa")
