@@ -8,8 +8,8 @@ from Queue import PriorityQueue
 from time import time, sleep
 from sys import stderr
 
-# MAP_NAME = "map_tb_world"
-MAP_NAME = "double_zz_map"
+MAP_NAME = "map_tb_world"
+# MAP_NAME = "double_zz_map"
 VALID_PATH_COLOR = 50
 CLEAR_TERRAIN_MAP_COLOR = 254  # reee
 UNEXPLORED_TERRAIN_COLOR = 205
@@ -285,7 +285,7 @@ class MapHandler(object):
     def astar(image, graph_map, starting_node, target_node=None,
               step_through_finished_path=False, step_through_explored_nodes=False, target_unexplored=False,
               original_image=None, display_image=False, outermost_coords=None,
-              unexplored_terrain_color=UNEXPLORED_TERRAIN_COLOR):
+              unexplored_terrain_color=UNEXPLORED_TERRAIN_COLOR, reverse_path=False):
         """
         More clever a-star to go through the maze.
         Rather than just pulling the pixels which are a safe distance from the wall, we will instead calculate nodes
@@ -400,6 +400,9 @@ class MapHandler(object):
             image_tmp = cv2.resize(image_tmp, None, fx=MAP_DISPLAY_SCALING_FACTOR,
                                    fy=MAP_DISPLAY_SCALING_FACTOR, interpolation=cv2.INTER_AREA)
             cv2.imshow("Path", image_tmp)
+
+        if reverse_path:
+            path_back = reversed(path_back)
         return path_back
 
     @staticmethod
@@ -465,6 +468,18 @@ class MapHandler(object):
             neighbors.append(map_graph[(node.row + 1, node.col)])
 
         return neighbors
+
+    @staticmethod
+    def get_distance_from_coords(r1, c1, r2, c2, resolution=0.05):
+        r1 /= resolution
+        r2 /= resolution
+        c1 /= resolution
+        c2 /= resolution
+        return math.sqrt((r2 - r1) ** 2 + (c2 - c1) ** 2)
+
+    @staticmethod
+    def distance_from_coords_tuple(p1, p2, resolution=0.05):
+        return MapHandler.get_distance_from_coords(p1[0], p1[1], p2[0], p2[1])
 
     @staticmethod
     def graph_to_json(adj_graph, filepath="graph.json"):
