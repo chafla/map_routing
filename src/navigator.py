@@ -30,6 +30,7 @@ class Navigator(object):
         rospy.init_node("map_navigator")
         self.mode = None  # Current navigation mode
         self.map_array = None  # Constructed map as an array
+        self._raw_map_arr = None
         self._pure_pursuit_pid = None
         self._adj_graph = {}
         self._img_painted = None
@@ -184,6 +185,10 @@ class Navigator(object):
                                          self._map_params["width"]),
                                          np.uint8)
 
+                raw_map_array = np.zeros((self._map_params["height"],
+                                         self._map_params["width"]),
+                                         np.uint8)
+
                 ros_map_data = map_msg.data
                 print(self._origin_coords)
 
@@ -201,12 +206,14 @@ class Navigator(object):
                         else:
                             ros_map_pixel_value = CLEAR_TERRAIN_MAP_COLOR
                         new_map_array[i][j] = ros_map_pixel_value
+                        raw_map_array[i][j] = ros_map_data[orig_map_arr_idx]  # TODO refactor this out after testing
                         orig_map_arr_idx += 1
 
                 new_map_array[origin_row][origin_col] = 175
                 print("Map array == old: {}".format(np.all(new_map_array == self.map_array)))
 
                 self.map_array = np.copy(new_map_array)
+                self._raw_map_arr = raw_map_array
 
                 new_map_array[self.cur_position[0]][self.cur_position[1]] = 200
 
@@ -217,6 +224,7 @@ class Navigator(object):
 
                 # Seriously. Adding a minimum value to create_graph cut the time by 13s.
                 self._outermost_map_values = MapHandler.get_outermost_coords(new_map_array, 75)
+                print("outermost values are {}".format(self._outermost_map_values))
                 print("Generating graph. Cropping took {}s to complete.".format(time() - crop_ts))
                 graph_ts = time()
 
@@ -247,6 +255,8 @@ class Navigator(object):
                         self._cur_target_path_timestamp = time()
 
                     print("Pathfinding complete. Took {}s.".format(time() - pathfinding_ts))
+                else:
+                    print >> stderr, "Cur position was unknown, skipping pathfinding."
             finally:
                 self.rate.sleep()
 
@@ -422,6 +432,8 @@ class Navigator(object):
                 if self._img_painted is not None:
                     cv2.imshow("painted", MapHandler.upscale_img(self._img_painted, fx=3, fy=3))
 
+                cv2.imshow("raw", self._raw_map_arr)
+
                 cv2.imshow("aaaaa", map_arr)
                 cv2.waitKey(1)
 
@@ -432,7 +444,8 @@ class Navigator(object):
         seeing as how it should be generated in order from first to last. Then, each time this runs through, set each
         value on the path within a given radius as visited, then pure pursuit to the next closest path tile.
 
-        todo it tends to get stuck when it's at about 180 degrees from its target path.
+        TODO we should determine the effective range of the robot and use that to basically mark all unknown terrain
+        within a threshold as valid, since the mapping breaks down in open spaces.
         """
         while not self._interrupt_event.is_set():
             try:

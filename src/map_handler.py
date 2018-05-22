@@ -115,7 +115,7 @@ class MapHandler(object):
         min_x = 10e50
         min_y = 10e50
         max_x = -1
-        max_y = 10e50
+        max_y = -1
 
         for row in range(height):
             last_row_occupied = False
@@ -131,8 +131,9 @@ class MapHandler(object):
                     # if it is, we'll set it below
                     last_row_occupied = True
 
-            if not last_row_occupied and min_x < 10e50 and min_y < 10e50:
-                max_y = min(row, max_y)
+            # if last_row_occupied and min_x < 10e50 and min_y < 10e50:
+            if last_row_occupied:
+                max_y = max(row, max_y)
 
         return min_x, min_y, max_x, max_y
 
