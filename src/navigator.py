@@ -16,6 +16,7 @@ import cv2
 from map_handler import MapHandler, WALL_COLOR, UNEXPLORED_TERRAIN_COLOR, VALID_PATH_COLOR, CLEAR_TERRAIN_MAP_COLOR
 from time import sleep, time
 import math
+from sys import stderr
 
 # Constants for the values that gmapping sets the values to in the int8 returned over the /map topic
 GMAP_TILE_FULL = 100
@@ -32,6 +33,11 @@ class Navigator(object):
         self._pure_pursuit_pid = None
         self._adj_graph = {}
         self._img_painted = None
+
+        # Increasing wall distance has a very adverse effect on performance
+        self.wall_distance = 4
+
+        self.path_following_radius = 1
 
         self._robot_visited_tiles = set()
 
@@ -62,8 +68,8 @@ class Navigator(object):
         self._target_path_visited = None  # Tiles along the a* path
         self._cur_target_path_timestamp = None
 
-        self.turn_p = 0.01
-        self.vel_p = 0.01
+        self.turn_p = 0.1
+        self.vel_p = 0.05
 
         self._map_data_lock = Lock()
         self._odom_data_lock = Lock()
@@ -98,8 +104,6 @@ class Navigator(object):
         self.map_handling_thread.daemon = True
         self.twist_publisher_thread.daemon = True
 
-
-
     @property
     def row_offset(self):
         return int(self._cur_offset[1] / self._map_params["resolution"])
@@ -107,6 +111,9 @@ class Navigator(object):
     @property
     def col_offset(self):
         return int(self._cur_offset[0] / self._map_params["resolution"])
+
+    def paint_img_painted(self, row, col, color):
+        """Img painted is scaled so all attempts to draw on it will not work"""
 
     def on_map_data(self, map_msg):
         """
@@ -123,24 +130,9 @@ class Navigator(object):
 
         Map data comes in as an int8
         """
-
-        map_metadata = map_msg.info
-        map_array = map_msg.data
-
-        # if not self._has_read_map_data:
-            # self._has_read_map_data = True
-        # self.init_map(map_msg)
-
         # Pass off the map processing to another thread since ROS subscribers only use one thread
         with self._map_data_lock:
             self._raw_map_msg = map_msg
-
-        # Write out the data so we can figure out how it looks
-
-        # print(map_msg.data)
-        # self.rate.sleep()
-
-        pass
 
     def _map_to_img(self, map_array):
         """Take in the int8[] that we get from ros and convert it to an image format that we can handle"""
@@ -229,15 +221,17 @@ class Navigator(object):
                 graph_ts = time()
 
                 # TODO this sometimes fails if we don't have a map tha's full enough
-                self._adj_graph = MapHandler.create_graph(new_map_array, 2, self._outermost_map_values)
+                self._adj_graph = MapHandler.create_graph(new_map_array, self.wall_distance, self._outermost_map_values)
 
                 print("Painting. Graph took {}s to generate.".format(time() - graph_ts))
-                self._img_painted = MapHandler.get_node_pixels(new_map_array, 2, self._outermost_map_values)
+                _img_painted_raw = MapHandler.get_node_pixels(new_map_array, self.wall_distance, self._outermost_map_values)
+
+                self._img_painted = np.copy(_img_painted_raw)
 
                 if self.cur_position is not None:
                     pathfinding_ts = time()
                     print("Pathfinding.")
-                    path = MapHandler.astar(self._img_painted, self._adj_graph, self._adj_graph.get(self.cur_position),
+                    path = MapHandler.astar(_img_painted_raw, self._adj_graph, self._adj_graph.get(self.cur_position),
                                             target_unexplored=True, original_image=new_map_array,
                                             outermost_coords=self._outermost_map_values,
                                             unexplored_terrain_color=75)
@@ -251,9 +245,6 @@ class Navigator(object):
                     with self._robot_visited_path_lock:
                         self._cur_target_path = path
                         self._cur_target_path_timestamp = time()
-
-
-                    self._img_painted = MapHandler.upscale_img(self._img_painted, fx=3, fy=3)
 
                     print("Pathfinding complete. Took {}s.".format(time() - pathfinding_ts))
             finally:
@@ -287,7 +278,7 @@ class Navigator(object):
             # cv2.imshow("aaaaa", new_map_array)
             # cv2.waitKey(1)
 
-        print("Time to process: {}".format(time() - init_ts))
+        # print("Time to process: {}".format(time() - init_ts))
         # with open("asdf.txt", "a") as outfile:
         #     for row in new_map_array:
         #         outfile.write(str(row) + "\n")
@@ -429,18 +420,19 @@ class Navigator(object):
                     # map_arr[adj_row][adj_col] = 173
 
                 if self._img_painted is not None:
-                    cv2.imshow("painted", self._img_painted)
+                    cv2.imshow("painted", MapHandler.upscale_img(self._img_painted, fx=3, fy=3))
 
                 cv2.imshow("aaaaa", map_arr)
                 cv2.waitKey(1)
 
-
-    def process_path(self, radius=0.1):
+    def process_path(self):
         """
         Publish twist values as they are generated.
         We should act on path basically as long as len(path) > 0. What we want to do go through each path node in order,
         seeing as how it should be generated in order from first to last. Then, each time this runs through, set each
         value on the path within a given radius as visited, then pure pursuit to the next closest path tile.
+
+        todo it tends to get stuck when it's at about 180 degrees from its target path.
         """
         while not self._interrupt_event.is_set():
             try:
@@ -452,8 +444,17 @@ class Navigator(object):
                 cur_path_point = None
                 cur_path_point_dist = None
 
-                if path is None:
+                if not path:
+                    # We want to stop it if we have any sort of invalid path
+                    twist = Twist()
+                    twist.linear.x = 0
+                    twist.angular.z = 0
+                    self.twist_pub.publish(twist)
                     continue
+
+                # self.map_array = cv2.circle(self.map_array, (self.cur_position[1], -self.cur_position[0]),
+                #                             int(self.path_following_radius / self._map_params["resolution"]), 150)
+
                 print("Path: ", path)
                 for point in path:  # note: points in path are of type Node
                     point_dist = MapHandler.get_distance_from_coords(point.row, point.col,
@@ -461,13 +462,15 @@ class Navigator(object):
 
                     print("point dist: ", point_dist)
 
-                    if point_dist >= radius:
+                    if point_dist >= self.path_following_radius:
                         cur_path_point = point.coords
                         cur_path_point_dist = point_dist
                         break
 
                     else:
-                        # self._cur_target_path.remove(point)
+                        self._cur_target_path.remove(point)
+                        self.map_array[point.row][point.col] = 0
+                        self._img_painted[point.row][point.col] = 230
                         pass
 
                 else:
@@ -475,7 +478,7 @@ class Navigator(object):
                     # Either way let's not move
                     continue
 
-                velocity = self.vel_p * cur_path_point_dist
+                velocity = min(self.vel_p * cur_path_point_dist, 0.5)
 
                 # Let's draw a point out somewhere
                 # We don't really care where as long as it is along the line
@@ -510,41 +513,60 @@ class Navigator(object):
                 acos_body = (cur_path_point_dist ** 2 + dist_to_target ** 2 - far_line_dist ** 2) / (2 * cur_path_point_dist * dist_to_target)
 
                 # Theta is the angle between our line of sight and line to the point
-                theta = math.acos(acos_body)
+                try:
+                    theta = math.acos(acos_body)
+                except ValueError:  # Domain error for cosine
+                    print >> stderr, "acos body: {}".format(acos_body)
 
                 # We now have to figure out if the point is to the robot's left or right so we know which way to turn
                 # theta isn't enough since it's just the raw angle: always positive
-                turn_amount = self.turn_p * theta
+                print("Turn p * theta:", self.turn_p * theta)
+                turn_amount = min(self.turn_p * theta, 0.5)
 
-                print("theta: ", theta)
+                # TODO The issue is that vel scales with theta so when it wraps around we tend to go crazy
+                if turn_amount >= 0.5 or theta > math.pi / 2:
+                    velocity = 0
 
-                print("theta (degrees):", (theta * 360) / (2 * math.pi))
+                # An issue that we tend to run into is that when theta is about equal to 180, the robot gets stuck since
+                # it constantly fluctuates between turn left hard and turn right hard without any forward velocity.
 
-                point_to_check_right = (int(5 * math.cos(self.cur_orientation + theta) + self.cur_position[0]),
-                                        int(5 * math.sin(self.cur_orientation + theta) + self.cur_position[1]))
+                # A solution to this may be to just rotate in one direction when theta is greater than pi / 4.
+                # It's a little hacky but it might do
 
-                point_to_check_left = (int(5 * math.cos(self.cur_orientation - theta) + self.cur_position[0]),
-                                       int(5 * math.sin(self.cur_orientation - theta) + self.cur_position[1]))
-
-                print("cur orientation + theta: {}".format(self.cur_orientation + theta))
-
-                print("point to check left: {}\nright: {}".format(point_to_check_left, point_to_check_right))
-
-                print("target", cur_path_point)
-
-
-
-                if MapHandler.distance_from_coords_tuple(point_to_check_right, cur_path_point) < MapHandler.distance_from_coords_tuple(point_to_check_left, cur_path_point):
-
-                    print("WOULD TURN LEFT")
-                    turn_amount *= -1
-
+                if theta > math.pi / 2:
+                    print("Theta is too large ({}), forcing rotation.".format(theta))
+                    turn_amount = 0.5
                 else:
 
-                    print("WOULD TURN RIGHT")
+                    print("theta: ", theta)
 
-                self.map_array[point_to_check_right[0]][point_to_check_right[1]] = 45
-                self.map_array[point_to_check_left[0]][point_to_check_left[1]] = 65
+                    print("theta (degrees):", (theta * 360) / (2 * math.pi))
+
+                    point_to_check_right = (int(5 * math.cos(self.cur_orientation + theta) + self.cur_position[0]),
+                                            int(5 * math.sin(self.cur_orientation + theta) + self.cur_position[1]))
+
+                    point_to_check_left = (int(5 * math.cos(self.cur_orientation - theta) + self.cur_position[0]),
+                                           int(5 * math.sin(self.cur_orientation - theta) + self.cur_position[1]))
+
+                    print("cur orientation + theta: {}".format(self.cur_orientation + theta))
+
+                    print("point to check left: {}\nright: {}".format(point_to_check_left, point_to_check_right))
+
+                    print("target", cur_path_point)
+
+
+
+                    if MapHandler.distance_from_coords_tuple(point_to_check_right, cur_path_point) > MapHandler.distance_from_coords_tuple(point_to_check_left, cur_path_point):
+
+                        print("clockwise")
+                        turn_amount *= -1
+
+                    else:
+
+                        print("counterclockwise")
+
+                    self.map_array[point_to_check_right[0]][point_to_check_right[1]] = 45
+                    self.map_array[point_to_check_left[0]][point_to_check_left[1]] = 65
 
                 twist = Twist()
 
@@ -578,7 +600,7 @@ class Navigator(object):
 
             finally:
                 # self.rate.sleep()
-                sleep(1)
+                sleep(0.25)
 
         print("process_path thread exiting.")
 
@@ -593,7 +615,6 @@ class Navigator(object):
                 self.twist_pub.publish(twist)
             finally:
                 self.rate.sleep()
-
 
     def update_map_thread(self):
         """
@@ -610,11 +631,9 @@ class Navigator(object):
         zero_twist.angular.z = 0
         zero_twist.linear.x = 0
         self.twist_pub.publish(zero_twist)
+        sleep(1)  # Wait for the twist thing to publish before we kill everything
         self._interrupt_event.set()
         self.path_process_thread.join()
-
-
-
 
     def run(self):
         """

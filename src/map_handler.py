@@ -435,16 +435,16 @@ class MapHandler(object):
         # print(img.size)
         neighbors = []
         # print(img[node.row, node.col])
-        if node.col > 0 and image[node.row][node.col - 1] == target_color:
+        if node.col > 0 and image[node.row][node.col - 1] == target_color and adj_graph.get((node.row, node.col - 1)):
             neighbors.append(adj_graph[(node.row, node.col - 1)])
 
-        if node.col < image.shape[1] - 1 and image[node.row][node.col + 1] == target_color:
+        if node.col < image.shape[1] - 1 and image[node.row][node.col + 1] == target_color and adj_graph.get((node.row, node.col + 1)):
             neighbors.append(adj_graph[(node.row, node.col + 1)])
 
-        if node.row > 0 and image[node.row - 1][node.col] == target_color:
+        if node.row > 0 and image[node.row - 1][node.col] == target_color and adj_graph.get((node.row - 1, node.col)):
             neighbors.append(adj_graph[(node.row - 1, node.col)])
 
-        if node.row < image.shape[0] - 1 and image[node.row + 1][node.col] == target_color:
+        if node.row < image.shape[0] - 1 and image[node.row + 1][node.col] == target_color and adj_graph.get((node.row + 1, node.col)):
             neighbors.append(adj_graph[(node.row + 1, node.col)])
 
         return neighbors
