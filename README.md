@@ -4,6 +4,10 @@ Little test-bed ROS project of mine to process the maps returned by the implemen
 
 Note that since this is entirely a testing project and *very much* a work-in-progress, it's very rough around the edges.
 
+# Video demo
+
+[![Video demo here](https://img.youtube.com/vi/jniJ2pxSftM/0.jpg)](https://www.youtube.com/watch?v=jniJ2pxSftM)
+
 # Usage
 
 Project should be cloned to `~/catkin_ws/src` or wherever you keep your catkin projects.
