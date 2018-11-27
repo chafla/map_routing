@@ -70,7 +70,7 @@ class Navigator(object):
         self._cur_target_path_timestamp = None
 
         self.turn_p = 0.1
-        self.vel_p = 0.05
+        self.vel_p = 0.007
 
         self._map_data_lock = Lock()
         self._odom_data_lock = Lock()
@@ -476,6 +476,7 @@ class Navigator(object):
                     print("point dist: ", point_dist)
 
                     if point_dist >= self.path_following_radius:
+                        # This point is the next point along our path that we should follow.
                         cur_path_point = point.coords
                         cur_path_point_dist = point_dist
                         break
@@ -491,9 +492,7 @@ class Navigator(object):
                     # Either way let's not move
                     continue
 
-                velocity = min(self.vel_p * cur_path_point_dist, 0.5)
-
-                # Let's draw a point out somewhere
+                # Let's draw a point out somewhere ahead of us
                 # We don't really care where as long as it is along the line
 
                 target_point = (int(5 * math.sin(self.cur_orientation) + self.cur_position[0]),
@@ -518,6 +517,42 @@ class Navigator(object):
                 far_line_dist = MapHandler.get_distance_from_coords(target_point[0], target_point[1],
                                                                     cur_path_point[0], cur_path_point[1]) * self._map_params["resolution"]
 
+                # The old strategy (that has been readily hacked around) was to simply use three points to calculate a
+                # triangle, and then use the law of cosines to get the angle of offset from the path.
+
+                # That much worked pretty effectively, although the issue was that we couldn't get a sign, meaning we
+                # were unable to determine whether to turn left or right. All we had was abs(theta).
+
+                # After thinking about it and searching around, this new strategy emerged.
+                # Using some mild vector math, we can get the cross product of a vector facing some point forward from
+                # the robot x the vector to the path which we want to follow.
+
+                # TODO Clean this up and remove some of the vestigal code.
+
+                # Divide them by distance to normalize them
+                bearing_vec = ((target_point[0] - self.cur_position[0]) / dist_to_target,
+                               (target_point[1] - self.cur_position[1]) / dist_to_target)
+
+                path_point_vec = ((cur_path_point[0] - self.cur_position[0]) / cur_path_point_dist,
+                                  (cur_path_point[1] - self.cur_position[1]) / cur_path_point_dist)
+
+                # Calculate their dot product
+
+                dot_prod = (bearing_vec[0] * path_point_vec[0] + bearing_vec[1] * path_point_vec[1])
+
+                print("Dot prod:", dot_prod)
+
+                # Get the absolute angle of offset from the
+
+                theta = abs(math.acos(dot_prod))
+
+                # Get the direction using the cross product
+
+                cross_prod = ((bearing_vec[1] * 0) - 0, (0 - 0), (bearing_vec[0] * path_point_vec[1]) - (bearing_vec[1] * path_point_vec[0]))
+
+                print(cross_prod)
+
+                """
                 print("a", cur_path_point_dist)
                 print("b", dist_to_target)
                 print("c", far_line_dist)
@@ -530,15 +565,28 @@ class Navigator(object):
                     theta = math.acos(acos_body)
                 except ValueError:  # Domain error for cosine
                     print >> stderr, "acos body: {}".format(acos_body)
+                    
+                """
+
+                print("Theta: ", theta)
 
                 # We now have to figure out if the point is to the robot's left or right so we know which way to turn
                 # theta isn't enough since it's just the raw angle: always positive
                 print("Turn p * theta:", self.turn_p * theta)
-                turn_amount = min(self.turn_p * theta, 0.5)
+                turn_amount = min(abs(self.turn_p * theta), 0.5)
+
+                # We only care about the sign on the z component of this new vector
+                turn_amount = math.copysign(turn_amount, -cross_prod[2])
+
+                print("turn amount", turn_amount)
 
                 # TODO The issue is that vel scales with theta so when it wraps around we tend to go crazy
-                if turn_amount >= 0.5 or theta > math.pi / 2:
+                # Python integer division in py2 makes me want to pull my hair out sometimes
+                if theta > (3.0 / 4.0) * math.pi:
                     velocity = 0
+                else:
+                    velocity = min(self.vel_p * abs(2 * math.pi - theta), 0.2)
+                print("Velocity", velocity)
 
                 # An issue that we tend to run into is that when theta is about equal to 180, the robot gets stuck since
                 # it constantly fluctuates between turn left hard and turn right hard without any forward velocity.
@@ -546,40 +594,42 @@ class Navigator(object):
                 # A solution to this may be to just rotate in one direction when theta is greater than pi / 4.
                 # It's a little hacky but it might do
 
-                if theta > math.pi / 2:
+                # FIXME
+                if theta > 3 * math.pi / 4 and False:
                     print("Theta is too large ({}), forcing rotation.".format(theta))
                     turn_amount = 0.5
                 else:
+                    pass
+                    #
+                    # print("theta: ", theta)
+                    #
+                    # print("theta (degrees):", (theta * 360) / (2 * math.pi))
+                    #
+                    # point_to_check_right = (int(5 * math.cos(self.cur_orientation + theta) + self.cur_position[0]),
+                    #                         int(5 * math.sin(self.cur_orientation + theta) + self.cur_position[1]))
+                    #
+                    # point_to_check_left = (int(5 * math.cos(self.cur_orientation - theta) + self.cur_position[0]),
+                    #                        int(5 * math.sin(self.cur_orientation - theta) + self.cur_position[1]))
+                    #
+                    # print("cur orientation + theta: {}".format(self.cur_orientation + theta))
+                    #
+                    # print("point to check left: {}\nright: {}".format(point_to_check_left, point_to_check_right))
+                    #
+                    # print("target", cur_path_point)
+                    #
+                    #
+                    #
+                    # if MapHandler.distance_from_coords_tuple(point_to_check_right, cur_path_point) > MapHandler.distance_from_coords_tuple(point_to_check_left, cur_path_point):
+                    #
+                    #     print("clockwise")
+                    #     turn_amount *= -1
+                    #
+                    # else:
+                    #
+                    #     print("counterclockwise")
 
-                    print("theta: ", theta)
-
-                    print("theta (degrees):", (theta * 360) / (2 * math.pi))
-
-                    point_to_check_right = (int(5 * math.cos(self.cur_orientation + theta) + self.cur_position[0]),
-                                            int(5 * math.sin(self.cur_orientation + theta) + self.cur_position[1]))
-
-                    point_to_check_left = (int(5 * math.cos(self.cur_orientation - theta) + self.cur_position[0]),
-                                           int(5 * math.sin(self.cur_orientation - theta) + self.cur_position[1]))
-
-                    print("cur orientation + theta: {}".format(self.cur_orientation + theta))
-
-                    print("point to check left: {}\nright: {}".format(point_to_check_left, point_to_check_right))
-
-                    print("target", cur_path_point)
-
-
-
-                    if MapHandler.distance_from_coords_tuple(point_to_check_right, cur_path_point) > MapHandler.distance_from_coords_tuple(point_to_check_left, cur_path_point):
-
-                        print("clockwise")
-                        turn_amount *= -1
-
-                    else:
-
-                        print("counterclockwise")
-
-                    self.map_array[point_to_check_right[0]][point_to_check_right[1]] = 45
-                    self.map_array[point_to_check_left[0]][point_to_check_left[1]] = 65
+                    # self.map_array[point_to_check_right[0]][point_to_check_right[1]] = 45
+                    # self.map_array[point_to_check_left[0]][point_to_check_left[1]] = 65
 
                 twist = Twist()
 
